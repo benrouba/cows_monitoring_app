@@ -22,8 +22,11 @@
 import 'package:flutter/material.dart';
 import 'theme.dart';
 import 'screens/dashboard_screen.dart';
+import 'repositories/cow_repository.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await CowRepository.instance.init();
   runApp(const MyApp());
 }
 

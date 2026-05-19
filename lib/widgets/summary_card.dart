@@ -20,9 +20,9 @@ class SummaryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: kAccentGreen),
+            Icon(icon, color: kPrimary),
             const SizedBox(height: 8),
-            Text(label, style: const TextStyle(color: kAccentGreen)),
+            Text(label, style: const TextStyle(color: kPrimary)),
             const SizedBox(height: 6),
             Text(
               value,

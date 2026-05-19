@@ -17,24 +17,24 @@ class EnvCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        border: Border.all(color: kBorderLight),
+        border: Border.all(color: kBorderColor),
         borderRadius: BorderRadius.circular(10),
-        color: Colors.white,
+        color: kCardBg,
       ),
       child: Column(
         children: [
-          Icon(icon, color: kAccentGreen),
+          Icon(icon, color: kPrimary),
           const SizedBox(height: 6),
           Text(
             value,
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: kTextDark,
+              color: kTextPrimary,
             ),
           ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(color: kTextGray)),
+          Text(label, style: const TextStyle(color: kTextSecondary)),
         ],
       ),
     );
