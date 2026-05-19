@@ -5,18 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "cow_monotoring_app",
+            "name": "NutriLait",
             "request": "launch",
             "type": "dart"
         },
         {
-            "name": "cow_monotoring_app (profile mode)",
+            "name": "NutriLait (profile mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "profile"
         },
         {
-            "name": "cow_monotoring_app (release mode)",
+            "name": "NutriLait (release mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release"
