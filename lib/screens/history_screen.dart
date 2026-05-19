@@ -16,15 +16,41 @@ class _HistoryPageState extends State<HistoryPage> {
   bool _loading = true;
   bool _hasError = false;
 
-  // Sessions grouped by cow name
-  Map<String, List<SessionData>> get _grouped {
-    final map = <String, List<SessionData>>{};
+  // Which date sections are expanded (today is expanded by default)
+  final Set<String> _expandedDates = {};
+
+  String get _todayKey {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  // Last 7 days sorted descending, only dates that have sessions
+  List<String> get _sortedDates {
+    final cutoff = DateTime.now().subtract(const Duration(days: 7));
+    final map = _groupedByDate;
+    final dates = map.keys.where((d) {
+      try {
+        final parsed = DateTime.parse(d);
+        return !parsed.isBefore(cutoff);
+      } catch (_) {
+        return true; // keep entries with unparseable dates
+      }
+    }).toList();
+    dates.sort((a, b) => b.compareTo(a));
+    return dates;
+  }
+
+  // date → cow → sessions
+  Map<String, Map<String, List<SessionData>>> get _groupedByDate {
+    final map = <String, Map<String, List<SessionData>>>{};
     for (final s in _sessions) {
-      map.putIfAbsent(s.cow, () => []).add(s);
+      final key = s.date.isNotEmpty ? s.date : 'Date inconnue';
+      map.putIfAbsent(key, () => {}).putIfAbsent(s.cow, () => []).add(s);
     }
-    // Sort sessions within each group by sessionNum
-    for (final list in map.values) {
-      list.sort((a, b) => a.sessionNum.compareTo(b.sessionNum));
+    for (final cowMap in map.values) {
+      for (final list in cowMap.values) {
+        list.sort((a, b) => a.sessionNum.compareTo(b.sessionNum));
+      }
     }
     return map;
   }
@@ -56,6 +82,8 @@ class _HistoryPageState extends State<HistoryPage> {
         _sessions = results[0] as List<SessionData>;
         _cows = results[1] as Map<String, CowFirebaseData>;
         _loading = false;
+        // Today is expanded by default
+        _expandedDates.add(_todayKey);
       });
     } catch (_) {
       if (!mounted) return;
@@ -91,9 +119,10 @@ class _HistoryPageState extends State<HistoryPage> {
           ] else if (_sessions.isEmpty) ...[
             _buildEmptyState(),
           ] else ...[
-            _buildSectionTitle('Séances de traite', Icons.schedule_outlined),
+            _buildSectionTitle('Historique des séances', Icons.history_outlined),
             const SizedBox(height: 12),
-            ..._grouped.entries.map(_buildCowGroup),
+            for (final date in _sortedDates)
+              _buildDaySection(date),
           ],
         ],
       ),
@@ -125,15 +154,12 @@ class _HistoryPageState extends State<HistoryPage> {
         ),
         const SizedBox(height: 4),
         Text("production laitière aujourd'hui",
-            style:
-                GoogleFonts.nunito(fontSize: 13, color: Colors.white70)),
+            style: GoogleFonts.nunito(fontSize: 13, color: Colors.white70)),
         const SizedBox(height: 14),
         Wrap(spacing: 8, runSpacing: 6, children: [
           _badge(Icons.pets, '${_cows.length} vaches'),
-          _badge(Icons.schedule_outlined,
-              '$_totalSessionsToday séances'),
-          _badge(Icons.list_alt_outlined,
-              '${_sessions.length} enregistrements'),
+          _badge(Icons.schedule_outlined, '$_totalSessionsToday séances auj.'),
+          _badge(Icons.list_alt_outlined, '${_sessions.length} enregistrements'),
         ]),
       ]),
     );
@@ -151,9 +177,7 @@ class _HistoryPageState extends State<HistoryPage> {
         const SizedBox(width: 5),
         Text(label,
             style: GoogleFonts.nunito(
-                fontSize: 12,
-                color: Colors.white,
-                fontWeight: FontWeight.w600)),
+                fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600)),
       ]),
     );
   }
@@ -168,20 +192,41 @@ class _HistoryPageState extends State<HistoryPage> {
     ]);
   }
 
-  // ── Per-cow group ─────────────────────────────────────────────────────────
-  Widget _buildCowGroup(MapEntry<String, List<SessionData>> entry) {
-    final cowName = entry.key;
-    final sessions = entry.value;
-    final cowData = _cows[cowName];
+  // ── Collapsible day section ───────────────────────────────────────────────
+  Widget _buildDaySection(String date) {
+    final isToday = date == _todayKey;
+    final isExpanded = _expandedDates.contains(date);
+    final cowMap = _groupedByDate[date]!;
     final totalMilk =
-        sessions.fold(0.0, (s, sess) => s + sess.milkKg);
+        cowMap.values.expand((l) => l).fold(0.0, (s, sess) => s + sess.milkKg);
+    final totalSessions =
+        cowMap.values.fold(0, (s, l) => s + l.length);
+
+    String dateLabel;
+    if (isToday) {
+      dateLabel = "Aujourd'hui";
+    } else {
+      try {
+        final d = DateTime.parse(date);
+        const months = [
+          '', 'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
+          'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'
+        ];
+        dateLabel = '${d.day} ${months[d.month]} ${d.year}';
+      } catch (_) {
+        dateLabel = date;
+      }
+    }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: kCardBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorderColor),
+        border: Border.all(
+            color: isToday
+                ? kPrimary.withValues(alpha: 0.40)
+                : kBorderColor),
         boxShadow: [
           BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -193,34 +238,127 @@ class _HistoryPageState extends State<HistoryPage> {
         borderRadius: BorderRadius.circular(14),
         child: Column(
           children: [
+            // ── Day header (tap to toggle) ─────────────────────────────────
+            InkWell(
+              onTap: () => setState(() {
+                if (isExpanded) {
+                  _expandedDates.remove(date);
+                } else {
+                  _expandedDates.add(date);
+                }
+              }),
+              child: Container(
+                color: isToday
+                    ? kPrimary.withValues(alpha: 0.07)
+                    : kSurface,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(children: [
+                  Icon(
+                    isToday ? Icons.today : Icons.calendar_month_outlined,
+                    color: isToday ? kPrimary : kTextSecondary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(dateLabel,
+                            style: GoogleFonts.nunito(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: isToday ? kPrimary : kTextPrimary)),
+                        Text(
+                          '$totalSessions séance(s) · ${cowMap.length} vache(s)',
+                          style: GoogleFonts.nunito(
+                              fontSize: 11, color: kTextSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text('${totalMilk.toStringAsFixed(2)} kg',
+                      style: GoogleFonts.nunito(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: kGold)),
+                  const SizedBox(width: 8),
+                  AnimatedRotation(
+                    turns: isExpanded ? 0.5 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(Icons.keyboard_arrow_down,
+                        color: kTextSecondary, size: 20),
+                  ),
+                ]),
+              ),
+            ),
+
+            // ── Expanded content: one card per cow ────────────────────────
+            if (isExpanded) ...[
+              const Divider(height: 1, color: kBorderColor),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Column(
+                  children: cowMap.entries
+                      .map((e) => _buildCowGroup(e))
+                      .toList(),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Per-cow group ─────────────────────────────────────────────────────────
+  Widget _buildCowGroup(MapEntry<String, List<SessionData>> entry) {
+    final cowName = entry.key;
+    final sessions = entry.value;
+    final cowData = _cows[cowName];
+    final totalMilk = sessions.fold(0.0, (s, sess) => s + sess.milkKg);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: kBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: kBorderColor),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Column(
+          children: [
             // Cow header
             Container(
               color: kSurface,
               padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               child: Row(children: [
                 Container(
-                  width: 38,
-                  height: 38,
-                  decoration:
-                      const BoxDecoration(color: kBg, shape: BoxShape.circle),
-                  child:
-                      const Icon(Icons.pets, color: kPrimary, size: 20),
+                  width: 34,
+                  height: 34,
+                  decoration: const BoxDecoration(
+                      color: kCardBg, shape: BoxShape.circle),
+                  child: const Icon(Icons.pets, color: kPrimary, size: 18),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(cowName,
                           style: GoogleFonts.nunito(
-                              fontSize: 16,
+                              fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: kTextPrimary)),
-                      if (cowData != null)
-                        Text(
-                          'RFID : ${cowData.uid.isNotEmpty ? cowData.uid : "—"}'
-                          ' · Màj : ${cowData.lastUpdated}',
+                      Text(
+                          () {
+                            final uid = cowData?.uid.isNotEmpty == true
+                                ? cowData!.uid
+                                : sessions.firstOrNull?.uid ?? '';
+                            return 'RFID : ${uid.isNotEmpty ? uid : "—"}';
+                          }(),
                           style: GoogleFonts.nunito(
                               fontSize: 11, color: kTextSecondary),
                         ),
@@ -230,7 +368,7 @@ class _HistoryPageState extends State<HistoryPage> {
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                   Text('${totalMilk.toStringAsFixed(2)} kg',
                       style: GoogleFonts.nunito(
-                          fontSize: 17,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                           color: kGold)),
                   Text('${sessions.length} séance(s)',
@@ -245,13 +383,11 @@ class _HistoryPageState extends State<HistoryPage> {
             ...sessions.asMap().entries.map((e) {
               final i = e.key;
               final sess = e.value;
-              return Column(
-                children: [
-                  _buildSessionRow(sess),
-                  if (i < sessions.length - 1)
-                    const Divider(height: 1, color: kBorderColor),
-                ],
-              );
+              return Column(children: [
+                _buildSessionRow(sess),
+                if (i < sessions.length - 1)
+                  const Divider(height: 1, color: kBorderColor),
+              ]);
             }),
           ],
         ),
@@ -261,24 +397,23 @@ class _HistoryPageState extends State<HistoryPage> {
 
   Widget _buildSessionRow(SessionData sess) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       child: Row(children: [
-        // Session number badge
         Container(
-          width: 32,
-          height: 32,
+          width: 30,
+          height: 30,
           decoration: BoxDecoration(
               color: kPrimary.withValues(alpha: 0.10),
               shape: BoxShape.circle),
           child: Center(
             child: Text('${sess.sessionNum}',
                 style: GoogleFonts.nunito(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
                     color: kPrimary)),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,17 +424,17 @@ class _HistoryPageState extends State<HistoryPage> {
                       fontWeight: FontWeight.w700,
                       color: kTextPrimary)),
               Text(sess.time,
-                  style: GoogleFonts.nunito(
-                      fontSize: 12, color: kTextSecondary)),
+                  style:
+                      GoogleFonts.nunito(fontSize: 12, color: kTextSecondary)),
             ],
           ),
         ),
         Row(children: [
-          const Icon(Icons.water_drop, color: kSecondary, size: 16),
+          const Icon(Icons.water_drop, color: kSecondary, size: 15),
           const SizedBox(width: 4),
           Text('${sess.milkKg.toStringAsFixed(3)} kg',
               style: GoogleFonts.nunito(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: kGold)),
         ]),

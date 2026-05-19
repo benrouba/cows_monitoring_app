@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/cow_data.dart';
 import '../repositories/cow_repository.dart';
+import '../services/firebase_service.dart';
 import '../theme.dart';
 import 'cowProfile_screen.dart';
 
@@ -30,6 +31,8 @@ class _CowFormScreenState extends State<CowFormScreen> {
   late bool _isGestante;
   late double _iact;
   bool _saving = false;
+  bool _loadingUid = true;
+  bool _uidFromTag = false;
 
   @override
   void initState() {
@@ -38,6 +41,7 @@ class _CowFormScreenState extends State<CowFormScreen> {
     _race = e?.race.isNotEmpty == true ? e!.race : 'Holstein-Frisonne';
     _uidCtrl = TextEditingController(
         text: e != null && e.id != e.name ? e.id : '');
+    _fetchTagUid();
     _pvCtrl = TextEditingController(
         text: e != null && e.pv > 0 ? e.pv.toStringAsFixed(0) : '');
     _ageCtrl = TextEditingController(
@@ -62,6 +66,20 @@ class _CowFormScreenState extends State<CowFormScreen> {
         }
       } catch (_) {}
     }
+  }
+
+  Future<void> _fetchTagUid() async {
+    try {
+      final fireData =
+          await FirebaseService.instance.fetchCow(widget.cowName);
+      if (fireData != null && fireData.uid.isNotEmpty && mounted) {
+        setState(() {
+          _uidCtrl.text = fireData.uid;
+          _uidFromTag = true;
+        });
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loadingUid = false);
   }
 
   @override
@@ -256,12 +274,16 @@ class _CowFormScreenState extends State<CowFormScreen> {
   Widget _buildRFIDField() {
     return Container(
       decoration: BoxDecoration(
-        color: kCardBg,
+        color: _uidFromTag ? kSurface : kCardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kBorderColor),
+        border: Border.all(
+          color: _uidFromTag ? kPrimary : kBorderColor,
+          width: _uidFromTag ? 1.2 : 0.8,
+        ),
       ),
       child: TextFormField(
         controller: _uidCtrl,
+        readOnly: _uidFromTag,
         textCapitalization: TextCapitalization.characters,
         style: GoogleFonts.nunito(
           fontSize: 15,
@@ -276,6 +298,22 @@ class _CowFormScreenState extends State<CowFormScreen> {
           hintStyle: GoogleFonts.nunito(
               fontSize: 12, color: kTextSecondary.withValues(alpha: 0.55)),
           prefixIcon: const Icon(Icons.nfc, color: kPrimary),
+          suffixIcon: _loadingUid
+              ? const Padding(
+                  padding: EdgeInsets.all(14),
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: kPrimary),
+                  ),
+                )
+              : _uidFromTag
+                  ? const Padding(
+                      padding: EdgeInsets.all(14),
+                      child: Icon(Icons.verified, color: kPrimary, size: 20),
+                    )
+                  : null,
           border: InputBorder.none,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

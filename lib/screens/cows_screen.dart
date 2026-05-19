@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../models/cow_data.dart';
 import '../repositories/cow_repository.dart';
 import '../services/firebase_service.dart';
 import '../theme.dart';
@@ -16,22 +17,33 @@ class CowsScreen extends StatefulWidget {
 
 class _CowsScreenState extends State<CowsScreen> {
   Map<String, CowFirebaseData> _fireData = {};
+  List<String> _cowNames = [];
   bool _loading = true;
-
-  static const _knownCows = CowRepository.knownCowNames;
 
   @override
   void initState() {
     super.initState();
+    _cowNames = CowRepository.instance.cowNames.toList();
     _loadData();
   }
 
   Future<void> _loadData() async {
     setState(() => _loading = true);
-    final data = await FirebaseService.instance.fetchAllCows();
+    Map<String, CowFirebaseData> liveData = {};
+    Map<String, CowData> profiles = {};
+    await Future.wait([
+      FirebaseService.instance.fetchAllCows().then((d) => liveData = d),
+      FirebaseService.instance.fetchAllProfiles().then((p) => profiles = p),
+    ]);
+    final names = <String>{
+      ...CowRepository.instance.cowNames,
+      ...liveData.keys,
+      ...profiles.keys,
+    }.toList()..sort();
     if (mounted) {
       setState(() {
-        _fireData = data;
+        _fireData = liveData;
+        _cowNames = names;
         _loading = false;
       });
     }
@@ -49,7 +61,7 @@ class _CowsScreenState extends State<CowsScreen> {
         children: [
           _buildHeader(),
           const SizedBox(height: 16),
-          ..._knownCows.map(_buildCowCard),
+          ..._cowNames.map(_buildCowCard),
           const SizedBox(height: 16),
         ],
       ),
@@ -91,7 +103,7 @@ class _CowsScreenState extends State<CowsScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${_knownCows.length} vaches · Touchez pour saisir le profil',
+                  '${_cowNames.length} vaches · Touchez pour saisir le profil',
                   style: GoogleFonts.nunito(
                     fontSize: 12,
                     color: Colors.white70,

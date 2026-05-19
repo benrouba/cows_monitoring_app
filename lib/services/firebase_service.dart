@@ -7,22 +7,30 @@ import '../models/cow_data.dart';
 class SessionData {
   final String id;
   final String cow;
+  final String uid;
   final double milkKg;
   final int sessionNum;
   final String time;
+  final String date; // comes from the path key, not the JSON body
 
   const SessionData({
     required this.id,
     required this.cow,
+    required this.uid,
     required this.milkKg,
     required this.sessionNum,
     required this.time,
+    required this.date,
   });
 
-  factory SessionData.fromJson(String id, Map<String, dynamic> json) {
+  // date is passed explicitly because it lives in the path, not the JSON body
+  factory SessionData.fromJson(
+      String id, String date, Map<String, dynamic> json) {
     return SessionData(
       id: id,
+      date: date,
       cow: json['cow']?.toString() ?? '',
+      uid: json['uid']?.toString() ?? '',
       milkKg: (json['milk_kg'] as num?)?.toDouble() ?? 0.0,
       sessionNum: (json['session_num'] as num?)?.toInt() ?? 1,
       time: json['time']?.toString() ?? '--',
@@ -33,9 +41,9 @@ class SessionData {
 // ── Daily cow data from Firebase ──────────────────────────────────────────
 
 class CowFirebaseData {
-  final String uid;         // RFID tag ID
+  final String uid;
   final double dailyMilkKg;
-  final int sessionsToday;
+  final int sessionsToday; // JSON key is 'sessions'
   final String lastUpdated;
 
   const CowFirebaseData({
@@ -45,11 +53,12 @@ class CowFirebaseData {
     required this.lastUpdated,
   });
 
+  // Reads from /cows/{name}/history/{date} node
   factory CowFirebaseData.fromJson(Map<String, dynamic> json) {
     return CowFirebaseData(
       uid: json['uid']?.toString() ?? '',
       dailyMilkKg: (json['daily_milk_kg'] as num?)?.toDouble() ?? 0.0,
-      sessionsToday: (json['sessions_today'] as num?)?.toInt() ?? 0,
+      sessionsToday: (json['sessions'] as num?)?.toInt() ?? 0,
       lastUpdated: json['last_updated']?.toString() ?? '--',
     );
   }
@@ -64,11 +73,20 @@ class FirebaseService {
   static const _base =
       'https://cow-milk-system-default-rtdb.europe-west1.firebasedatabase.app';
 
+  String get _todayKey {
+    final now = DateTime.now();
+    return '${now.year}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+  }
+
   // ── Milk data (read) ─────────────────────────────────────────────────────
 
+  // Fetches today's history entry for a single cow.
   Future<CowFirebaseData?> fetchCow(String cowName) async {
     try {
-      final uri = Uri.parse('$_base/cows/$cowName.json');
+      final uri =
+          Uri.parse('$_base/cows/$cowName/history/$_todayKey.json');
       final resp = await http.get(uri).timeout(const Duration(seconds: 8));
       if (resp.statusCode == 200) {
         final data = json.decode(resp.body);
@@ -80,17 +98,29 @@ class FirebaseService {
     return null;
   }
 
+  // Fetches today's history entry for every cow.
+  // Structure: /cows/{name}/history/{date} → CowFirebaseData
   Future<Map<String, CowFirebaseData>> fetchAllCows() async {
     try {
+      final today = _todayKey;
       final uri = Uri.parse('$_base/cows.json');
       final resp = await http.get(uri).timeout(const Duration(seconds: 8));
       if (resp.statusCode == 200) {
         final data = json.decode(resp.body);
         if (data is Map<String, dynamic>) {
-          return data.map((k, v) => MapEntry(
-                k,
-                CowFirebaseData.fromJson(v as Map<String, dynamic>),
-              ));
+          final result = <String, CowFirebaseData>{};
+          for (final entry in data.entries) {
+            final cowName = entry.key;
+            final cowNode = entry.value;
+            if (cowNode is! Map<String, dynamic>) continue;
+            final history = cowNode['history'];
+            if (history is! Map<String, dynamic>) continue;
+            final todayData = history[today];
+            if (todayData is Map<String, dynamic>) {
+              result[cowName] = CowFirebaseData.fromJson(todayData);
+            }
+          }
+          return result;
         }
       }
     } catch (_) {}
@@ -99,6 +129,7 @@ class FirebaseService {
 
   // ── Session history (read) ───────────────────────────────────────────────
 
+  // Fetches all sessions. Structure: /sessions/{date}/{session_id} → SessionData
   Future<List<SessionData>> fetchSessions() async {
     try {
       final uri = Uri.parse('$_base/sessions.json');
@@ -106,13 +137,21 @@ class FirebaseService {
       if (resp.statusCode == 200) {
         final data = json.decode(resp.body);
         if (data is Map<String, dynamic>) {
-          final list = data.entries
-              .where((e) => e.value is Map<String, dynamic>)
-              .map((e) => SessionData.fromJson(
-                    e.key,
-                    e.value as Map<String, dynamic>,
-                  ))
-              .toList();
+          final list = <SessionData>[];
+          for (final dateEntry in data.entries) {
+            final date = dateEntry.key;
+            final sessionsOnDate = dateEntry.value;
+            if (sessionsOnDate is! Map<String, dynamic>) continue;
+            for (final sessEntry in sessionsOnDate.entries) {
+              if (sessEntry.value is Map<String, dynamic>) {
+                list.add(SessionData.fromJson(
+                  sessEntry.key,
+                  date,
+                  sessEntry.value as Map<String, dynamic>,
+                ));
+              }
+            }
+          }
           list.sort((a, b) => a.time.compareTo(b.time));
           return list;
         }
@@ -171,8 +210,7 @@ class FirebaseService {
           return {
             for (final e in data.entries)
               if (e.value is Map<String, dynamic>)
-                e.key: _profileFromJson(
-                    e.key, e.value as Map<String, dynamic>)
+                e.key: _profileFromJson(e.key, e.value as Map<String, dynamic>)
           };
         }
       }
