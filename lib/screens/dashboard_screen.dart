@@ -4,7 +4,7 @@ import '../theme.dart';
 import 'home_screen.dart';
 import 'cows_screen.dart';
 import 'history_screen.dart';
-import 'profit_screen.dart';
+import 'feeding_plans_screen.dart';
 import 'cow_form_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -21,14 +21,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     HomePage(),
     CowsScreen(),
     HistoryPage(),
-    ProfitPage(),
+    FeedingPlansScreen(),
   ];
 
   static const List<String> _titles = [
     'Tableau de bord',
     'Votre Troupeau',
     'Historique',
-    'Profits',
+    'Plans Alimentaires',
   ];
 
   Future<void> _openAddCowDialog() async {
@@ -177,7 +177,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _navItem(
                   2, Icons.history_outlined, Icons.history, 'Historique'),
               _navItem(
-                  3, Icons.trending_up_outlined, Icons.trending_up, 'Profits'),
+                  3, Icons.grass_outlined, Icons.grass, 'Alimentation'),
             ],
           ),
         ),

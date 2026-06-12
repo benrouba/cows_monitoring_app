@@ -218,6 +218,56 @@ class FirebaseService {
     return {};
   }
 
+  // Fetches /profiles.json as-is, preserving the raw int/double types
+  // stored in Firebase for each field (pv, nec, semG, tb, tp, iact,
+  // ageMois, race, id) — used by the feeding-plan endpoints.
+  Future<Map<String, Map<String, dynamic>>> fetchAllProfilesRaw() async {
+    try {
+      final uri = Uri.parse('$_base/profiles.json');
+      final resp = await http.get(uri).timeout(const Duration(seconds: 8));
+      if (resp.statusCode == 200) {
+        final data = json.decode(resp.body);
+        if (data is Map<String, dynamic>) {
+          return {
+            for (final e in data.entries)
+              if (e.value is Map<String, dynamic>)
+                e.key: e.value as Map<String, dynamic>
+          };
+        }
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  // For each cow under /cows/{name}/history/, finds the most recent date
+  // entry and returns its daily_milk_kg. Cows without history are omitted
+  // (callers should default to 0.0).
+  Future<Map<String, double>> fetchLatestMilkYields() async {
+    try {
+      final uri = Uri.parse('$_base/cows.json');
+      final resp = await http.get(uri).timeout(const Duration(seconds: 8));
+      if (resp.statusCode == 200) {
+        final data = json.decode(resp.body);
+        if (data is Map<String, dynamic>) {
+          final result = <String, double>{};
+          for (final entry in data.entries) {
+            final cowNode = entry.value;
+            if (cowNode is! Map<String, dynamic>) continue;
+            final history = cowNode['history'];
+            if (history is! Map<String, dynamic> || history.isEmpty) continue;
+            final dates = history.keys.toList()..sort();
+            final latest = history[dates.last];
+            if (latest is Map<String, dynamic>) {
+              result[entry.key] = (latest['daily_milk_kg'] as num?)?.toDouble() ?? 0.0;
+            }
+          }
+          return result;
+        }
+      }
+    } catch (_) {}
+    return {};
+  }
+
   CowData _profileFromJson(String name, Map<String, dynamic> j) {
     return CowData(
       name: name,

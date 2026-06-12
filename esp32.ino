@@ -21,7 +21,7 @@
   "https://cow-milk-system-default-rtdb.europe-west1.firebasedatabase.app"
 
 // ── Vision Server ────────────────────────────────────────────
-#define VISION_SERVER "http://192.168.1.3:8000/identify"
+#define VISION_SERVER "https://cow-farm-server.onrender.com/identify"
 
 // ── NTP ──────────────────────────────────────────────────────
 #define NTP_SERVER      "pool.ntp.org"
