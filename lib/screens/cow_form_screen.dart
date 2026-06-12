@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/cow_data.dart';
 import '../repositories/cow_repository.dart';
 import '../services/firebase_service.dart';
@@ -80,7 +79,7 @@ class _CowFormScreenState extends State<CowFormScreen> {
   bool _uidFromTag = false;
 
   // ── muzzle-photo fields ───────────────────────────────────────────────────
-  final _serverUrlCtrl = TextEditingController();
+  static const _muzzleServerUrl = 'https://cow-farm-server.onrender.com';
   final _imagePicker = ImagePicker();
   File? _selectedPhoto;
   bool _uploading = false;
@@ -124,9 +123,6 @@ class _CowFormScreenState extends State<CowFormScreen> {
         }
       } catch (_) {}
     }
-
-    // muzzle-photo init
-    _loadServerUrl();
   }
 
   @override
@@ -136,7 +132,6 @@ class _CowFormScreenState extends State<CowFormScreen> {
     _ageCtrl.dispose();
     _tbCtrl.dispose();
     _tpCtrl.dispose();
-    _serverUrlCtrl.dispose();
     super.dispose();
   }
 
@@ -235,18 +230,6 @@ class _CowFormScreenState extends State<CowFormScreen> {
   }
 
   // ── muzzle-photo helpers ──────────────────────────────────────────────────
-  Future<void> _loadServerUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    final url =
-        prefs.getString('muzzle_server_url') ?? 'http://192.168.1.10:8000';
-    if (mounted) setState(() => _serverUrlCtrl.text = url);
-  }
-
-  Future<void> _saveServerUrl(String url) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('muzzle_server_url', url.trim());
-  }
-
   Future<void> _pickImage(ImageSource source) async {
     final xFile = await _imagePicker.pickImage(
       source: source,
@@ -271,8 +254,7 @@ class _CowFormScreenState extends State<CowFormScreen> {
       _uploadError = null;
     });
 
-    final serverUrl = _serverUrlCtrl.text.trim().replaceAll(RegExp(r'/+$'), '');
-    await _saveServerUrl(serverUrl);
+    const serverUrl = _muzzleServerUrl;
 
     try {
       final request = http.MultipartRequest(
@@ -980,38 +962,27 @@ class _CowFormScreenState extends State<CowFormScreen> {
       children: [
         // ── Server URL ──────────────────────────────────────────────────
         Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             color: kCardBg,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: kBorderColor),
           ),
-          child: TextFormField(
-            controller: _serverUrlCtrl,
-            keyboardType: TextInputType.url,
-            style: GoogleFonts.nunito(fontSize: 13, color: kTextPrimary),
-            onChanged: _saveServerUrl,
-            decoration: InputDecoration(
-              labelText: 'URL du serveur',
-              hintText: 'http://192.168.1.10:8000',
-              labelStyle: GoogleFonts.nunito(
-                fontSize: 13,
-                color: kTextSecondary,
+          child: Row(
+            children: [
+              const Icon(Icons.dns_outlined, color: kPrimary, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _muzzleServerUrl,
+                  style: GoogleFonts.nunito(
+                    fontSize: 13,
+                    color: kTextPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
-              hintStyle: GoogleFonts.nunito(
-                fontSize: 12,
-                color: kTextSecondary.withValues(alpha: 0.55),
-              ),
-              prefixIcon: const Icon(
-                Icons.dns_outlined,
-                color: kPrimary,
-                size: 20,
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-            ),
+            ],
           ),
         ),
         const SizedBox(height: 12),

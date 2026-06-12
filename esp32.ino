@@ -205,8 +205,8 @@ void checkBootButton() {
     if (heldMs >= 2000 && heldMs < WIFI_RESET_HOLD_MS) {
       int secsLeft = (WIFI_RESET_HOLD_MS - heldMs) / 1000 + 1;
       lcd.clear();
-      lcd.setCursor(0, 0); lcd.print("Hold: WiFi reset");
-      lcd.setCursor(0, 1); lcd.print("Release=cancel ");
+      lcd.setCursor(0, 0); lcd.print("Maintenir: Reset WiFi");
+      lcd.setCursor(0, 1); lcd.print("Relacher=annul ");
       lcd.print(secsLeft);
       lcd.print("s");
     }
@@ -253,7 +253,7 @@ void lcdValue(const char* label, float val, const char* unit) {
 // ============================================================
 void resetWiFi() {
   Serial.println("🔴 Resetting WiFi credentials...");
-  lcdShow("WiFi Reset!", "Rebooting...");
+  lcdShow("Reset WiFi!", "Redemarrage...");
   delay(2000);
 
   WiFiManager wm;
@@ -268,7 +268,7 @@ void connectWiFi() {
   WiFiManager wm;
   wm.setConfigPortalTimeout(180);
 
-  lcdShow("Connecting WiFi", "NutriLait-Setup");
+  lcdShow("Connexion WiFi", "NutriLait-Setup");
   Serial.println("📶 WiFiManager starting...");
   Serial.println("   No saved WiFi → connect to: NutriLait-Setup");
   Serial.println("   Password: cow12345 → open 192.168.4.1");
@@ -281,7 +281,7 @@ void connectWiFi() {
     lcdShow("WiFi OK!", WiFi.localIP().toString().c_str());
   } else {
     Serial.println("⚠️  Portal timed out — offline mode.");
-    lcdShow("WiFi Failed", "Offline mode");
+    lcdShow("Echec WiFi", "Mode hors ligne");
   }
   delay(LCD_MSG_LONG_MS);
 }
@@ -309,7 +309,7 @@ void maintainWiFi() {
 void syncTime() {
   if (WiFi.status() != WL_CONNECTED) return;
 
-  lcdShow("Syncing time...", "Please wait");
+  lcdShow("Synchro heure...", "Veuillez patienter");
 
   // Allow network stack to fully settle after WiFi connect
   Serial.print("🕐 Waiting for network to settle");
@@ -341,7 +341,7 @@ void syncTime() {
       char buf[20];
       strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", &t);
       Serial.println("✅ Time synced: " + String(buf));
-      lcdShow("Time Synced!", buf);
+      lcdShow("Heure synchronisee!", buf);
       delay(LCD_MSG_MEDIUM_MS);
       break;
     }
@@ -357,7 +357,7 @@ void syncTime() {
 
   if (!synced) {
     Serial.println("⚠️  NTP failed — uptime fallback.");
-    lcdShow("NTP Failed", "Uptime fallback");
+    lcdShow("Echec NTP", "Mode secours");
     delay(LCD_MSG_MEDIUM_MS);
   }
 }
@@ -426,7 +426,7 @@ void restoreDailyTotalsFromFirebase() {
   }
 
   Serial.println("🔄 Restoring today's totals from Firebase...");
-  lcdShow("Restoring...", today.c_str());
+  lcdShow("Restauration...", today.c_str());
 
   bool anyRestored = false;
 
@@ -470,8 +470,8 @@ void restoreDailyTotalsFromFirebase() {
     }
   }
 
-  if (anyRestored) lcdShow("Totals Restored", today.c_str());
-  else             lcdShow("Fresh Day", today.c_str());
+  if (anyRestored) lcdShow("Totaux restaures", today.c_str());
+  else             lcdShow("Nouvelle journee", today.c_str());
   delay(LCD_MSG_MEDIUM_MS);
 }
 
@@ -516,7 +516,7 @@ void sendToFirebase(int cowIdx, float sessionKg,
                     const String& idMethod, float visionConf) {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("⚠️  No WiFi — data not saved.");
-    lcdShow("No WiFi!", "Data not saved");
+    lcdShow("Pas de WiFi!", "Donnees non sauv.");
     delay(LCD_MSG_LONG_MS);
     return;
   }
@@ -525,7 +525,7 @@ void sendToFirebase(int cowIdx, float sessionKg,
   String date = getDateString();
   String time = getTimeString();
 
-  lcdShow("Uploading...", "Please wait");
+  lcdShow("Envoi...", "Veuillez patienter");
   Serial.println("📤 Sending to Firebase...");
 
   // Daily history
@@ -554,8 +554,8 @@ void sendToFirebase(int cowIdx, float sessionKg,
   bool ok2 = firebasePost("/sessions/" + date, sessionJson);
   Serial.println(ok2 ? "   ✅ Session pushed." : "   ❌ Session failed.");
 
-  if (ok1 && ok2) lcdShow("Firebase OK!", "Data saved");
-  else            lcdShow("Firebase Err", "Check serial");
+  if (ok1 && ok2) lcdShow("Firebase OK!", "Donnees sauvees");
+  else            lcdShow("Erreur Firebase", "Voir moniteur");
   delay(LCD_MSG_LONG_MS);
 }
 
@@ -602,7 +602,7 @@ bool initCamera() {
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
     Serial.printf("❌ Camera init failed: 0x%x\n", err);
-    lcdShow("Camera Error!", "Check wiring");
+    lcdShow("Erreur Camera!", "Verifier cablage");
     return false;
   }
 
@@ -644,12 +644,12 @@ String captureAndIdentify() {
   }
 
   Serial.println("📸 Capturing photo...");
-  lcdShow("Scanning...", "Camera active");
+  lcdShow("Analyse...", "Camera active");
 
   camera_fb_t* fb = esp_camera_fb_get();
   if (!fb) {
     Serial.println("❌ Camera capture failed.");
-    lcdShow("Camera failed", "RFID only");
+    lcdShow("Echec camera", "RFID seul");
     delay(LCD_MSG_MEDIUM_MS);
     return "capture_error";
   }
@@ -768,8 +768,8 @@ void printDailySummary() {
 
 void showIdleScreen() {
   lcd.clear();
-  lcd.setCursor(0, 0); lcd.print("Press BTN1 entry");
-  lcd.setCursor(0, 1); lcd.print("Time: ");
+  lcd.setCursor(0, 0); lcd.print("BTN1 pour entree");
+  lcd.setCursor(0, 1); lcd.print("Heure: ");
   lcd.print(getTimeString().substring(0, 5));
 }
 
@@ -806,20 +806,20 @@ void finishSession() {
   lcd.clear();
   lcd.setCursor(0, 0);
   char s1[17];
-  snprintf(s1, sizeof(s1), "%-9s Done!", cow.name);
+  snprintf(s1, sizeof(s1), "%-9s Termine!", cow.name);
   lcd.print(s1);
-  lcdValue("Got: ", sessionKg, " kg");
+  lcdValue("Recu: ", sessionKg, " kg");
   delay(3000);
 
   // Screen 2 — daily total
   lcd.clear();
-  lcd.setCursor(0, 0); lcd.print("Daily total:");
+  lcd.setCursor(0, 0); lcd.print("Total journal.:");
   lcdValue("", cow.dailyMilk, " kg");
   delay(3000);
 
   // Screen 3 — session count
   lcd.clear();
-  lcd.setCursor(0, 0); lcd.print("Sessions today:");
+  lcd.setCursor(0, 0); lcd.print("Sessions ajd:");
   lcd.setCursor(0, 1); lcd.print(cow.sessions);
   lcd.print(cow.sessions > 1 ? " sessions" : " session");
   delay(LCD_MSG_LONG_MS);
@@ -857,7 +857,7 @@ void setup() {
   scanI2C();
   lcd.init();
   lcd.backlight();
-  lcdShow("NutriLait", "Booting...");
+  lcdShow("NutriLait", "Demarrage...");
   delay(1000);
   Serial.println("✅ LCD ready.");
 
@@ -868,11 +868,11 @@ void setup() {
   byte v = rfid.PCD_ReadRegister(rfid.VersionReg);
   if (v == 0x00 || v == 0xFF) {
     Serial.println("❌ RC522 not detected!");
-    lcdShow("RC522 Error!", "Check wiring");
+    lcdShow("RC522 Error!", "Verifier cablage");
     delay(3000);
   } else {
     Serial.printf("✅ RC522 OK (v0x%02X)\n", v);
-    lcdShow("RFID Ready", "");
+    lcdShow("RFID Pret", "");
     delay(LCD_MSG_SHORT_MS);
   }
 
@@ -886,19 +886,19 @@ void setup() {
   }
   if (!scale.is_ready()) {
     Serial.println("❌ HX711 not ready — rebooting.");
-    lcdShow("HX711 Error!", "Rebooting...");
+    lcdShow("HX711 Error!", "Redemarrage...");
     delay(3000);
     ESP.restart();
   }
   scale.set_scale(CALIBRATION_FACTOR);
   scale.tare();
   Serial.println("✅ HX711 ready and tared.");
-  lcdShow("Scale Ready", "Tared OK");
+  lcdShow("Balance Prete", "Tarage OK");
   delay(LCD_MSG_SHORT_MS);
 
   // ── Camera ───────────────────────────────────────────────────
   if (initCamera()) {
-    lcdShow("Camera Ready", "OV2640 OK");
+    lcdShow("Camera Prete", "OV2640 OK");
     delay(LCD_MSG_SHORT_MS);
   }
 
@@ -949,7 +949,7 @@ void loop() {
 
     if (buttonPressed(btn_enter)) {
       Serial.println("\n🔵 Cow entering — scan RFID...");
-      lcdShow("Cow entering...", "Scan RFID tag");
+      lcdShow("Vache entree...", "Scanner RFID");
       currentState = WAITING_RFID;
       activeCow    = -1;
     }
@@ -959,8 +959,8 @@ void loop() {
   else if (currentState == WAITING_RFID) {
 
     if (buttonPressed(btn_enter)) {
-      Serial.println("↩️  Cancelled.");
-      lcdShow("Cancelled", "");
+      Serial.println("↩️  Annule.");
+      lcdShow("Annule", "");
       delay(LCD_MSG_SHORT_MS);
       showIdleScreen();
       currentState = IDLE;
@@ -1004,10 +1004,10 @@ void loop() {
         idMethod    = "RFID_only";
         visionConf  = 0.0f;
         resolvedIdx = rfidIdx;
-        Serial.println("⚠️  RFID only (vision unavailable).");
+        Serial.println("⚠️  RFID seul (vision unavailable).");
         lcd.clear();
         lcd.setCursor(0, 0); lcd.print(rfidName);
-        lcd.setCursor(0, 1); lcd.print("ID: RFID only");
+        lcd.setCursor(0, 1); lcd.print("ID: RFID seul");
         delay(LCD_MSG_MEDIUM_MS);
 
       } else {
@@ -1018,7 +1018,7 @@ void loop() {
                        " Vision=" + visionName);
         lcd.clear();
         lcd.setCursor(0, 0); lcd.print(rfidName);
-        lcd.setCursor(0, 1); lcd.print("Mismatch:RFID");
+        lcd.setCursor(0, 1); lcd.print("Conflit: RFID");
         delay(LCD_MSG_MEDIUM_MS);
       }
 
@@ -1038,7 +1038,7 @@ void loop() {
           Serial.println("⚠️  Vision only: " + visionName);
           lcd.clear();
           lcd.setCursor(0, 0); lcd.print(visionName);
-          lcd.setCursor(0, 1); lcd.print("ID: Vision only");
+          lcd.setCursor(0, 1); lcd.print("ID: Vision seule");
           delay(LCD_MSG_MEDIUM_MS);
         }
       }
@@ -1046,9 +1046,9 @@ void loop() {
 
     if (resolvedIdx < 0) {
       Serial.println("❓ Unknown cow.");
-      lcdShow("Unknown cow!", "Check RFID tag");
+      lcdShow("Vache inconnue!", "Verifier RFID");
       delay(LCD_MSG_LONG_MS);
-      lcdShow("Cow entering...", "Scan RFID tag");
+      lcdShow("Vache entree...", "Scanner RFID");
       rfid.PICC_HaltA();
       rfid.PCD_StopCrypto1();
       return;
@@ -1064,7 +1064,7 @@ void loop() {
     Serial.printf("   Method     : %s\n", idMethod.c_str());
     Serial.printf("   Confidence : %.1f%%\n", visionConf);
 
-    lcdShow(cow.name, "Taring scale...");
+    lcdShow(cow.name, "Tarage balance...");
     scale.tare();
     delay(500);
     Serial.println("✅ Scale tared. Milking started.");
@@ -1075,7 +1075,7 @@ void loop() {
     char top[17];
     snprintf(top, sizeof(top), "%-9s Milk", cow.name);
     lcd.print(top);
-    lcd.setCursor(0, 1); lcd.print("Live: 0.000 kg");
+    lcd.setCursor(0, 1); lcd.print("Direct:0.000kg");
     currentState   = MEASURING;
 
     rfid.PICC_HaltA();
@@ -1092,7 +1092,7 @@ void loop() {
       float live = getFilteredWeight(5);
       Serial.printf("  ⚖️  %.3f kg\n", live);
       lcd.setCursor(0, 1);
-      lcd.print("Live:");
+      lcd.print("Direct:");
       lcd.print(live, 3);
       lcd.print(" kg   ");
     }
