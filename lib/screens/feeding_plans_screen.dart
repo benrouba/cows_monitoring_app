@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/feeding_models.dart';
 import '../services/feeding_service.dart';
@@ -16,9 +15,7 @@ class FeedingPlansScreen extends StatefulWidget {
 }
 
 class _FeedingPlansScreenState extends State<FeedingPlansScreen> {
-  final TextEditingController _serverUrlCtrl = TextEditingController(
-    text: 'https://cow-farm-server.onrender.com/',
-  );
+  static const _serverUrl = 'https://cow-farm-server.onrender.com';
 
   bool _loadingCows = true;
   List<FeedingCow> _cows = [];
@@ -26,27 +23,7 @@ class _FeedingPlansScreenState extends State<FeedingPlansScreen> {
   @override
   void initState() {
     super.initState();
-    _loadServerUrl();
     _loadCows();
-  }
-
-  @override
-  void dispose() {
-    _serverUrlCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadServerUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    final url =
-        prefs.getString('server_url') ??
-        'https://cow-farm-server.onrender.com/';
-    if (mounted) setState(() => _serverUrlCtrl.text = url);
-  }
-
-  Future<void> _saveServerUrl(String url) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('server_url', url.trim());
   }
 
   Future<void> _loadCows() async {
@@ -75,9 +52,6 @@ class _FeedingPlansScreenState extends State<FeedingPlansScreen> {
       });
     }
   }
-
-  String get _serverUrl =>
-      _serverUrlCtrl.text.trim().replaceAll(RegExp(r'/+$'), '');
 
   @override
   Widget build(BuildContext context) {
@@ -139,42 +113,33 @@ class _FeedingPlansScreenState extends State<FeedingPlansScreen> {
     );
   }
 
-  // ── Server URL field ────────────────────────────────────────────────────
+  // ── Server URL display ──────────────────────────────────────────────────
   Widget _buildServerUrlField() {
     return Container(
       color: kCardBg,
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-      child: TextField(
-        controller: _serverUrlCtrl,
-        keyboardType: TextInputType.url,
-        style: GoogleFonts.nunito(fontSize: 13, color: kTextPrimary),
-        onChanged: (v) {
-          _saveServerUrl(v);
-          setState(() {});
-        },
-        decoration: InputDecoration(
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 10,
-          ),
-          labelText: 'URL du serveur',
-          labelStyle: GoogleFonts.nunito(fontSize: 12, color: kTextSecondary),
-          prefixIcon: const Icon(Icons.dns_outlined, color: kPrimary, size: 18),
-          filled: true,
-          fillColor: kSurface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: kBorderColor),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: kBorderColor),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: kPrimary, width: 1.5),
-          ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: kBorderColor),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.dns_outlined, color: kPrimary, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                _serverUrl,
+                style: GoogleFonts.nunito(
+                  fontSize: 13,
+                  color: kTextPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
